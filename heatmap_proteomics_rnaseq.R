@@ -86,7 +86,8 @@ norm_sam <- cbind(sam_rpkm[[2]][,1:12],sam_rpkm[[3]][,1:12],sam_rpkm[[4]][,1:12]
 
 merg <- merge(norm_sam, new_order, by.x = 'row.names', by.y = 'row.names', all.y = T)
 
-heatmap.2(as.matrix(merg[,2:73]), col = colorRampPalette(c('blue','gray','yellow')), trace = 'none', Colv = F)
+heatmap.2(as.matrix(merg[,2:73]), col = colorRampPalette(c('blue','gray','yellow')), trace = 'none', Colv = F, labRow = merg[,1])
 
 ##Identify rows with zeroes
+
 

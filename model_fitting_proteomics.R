@@ -2,6 +2,7 @@
 library('locfit')
 library('rootSolve')
 library('plyr')
+library('cvTools')
 
 as_safequant <- read.delim('C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/SQ_Results_PROTEIN.tsv', header = T, strings = F)
 numbers <- as_safequant[,1:78]
@@ -90,4 +91,9 @@ roots_locfit1 <- ldply(roots_locfit1, rbind)
 meh <- rbind(roots_locfit1[,1],roots_locfit1[,2],roots_locfit1[,3], roots_locfit1[,4])
 hist(meh, breaks = 100, main = 'Histogram of roots', freq = F)
 lines(density(meh, na.rm = T, from = 0, to = max(meh, na.rm = T)), col = 'red')
+
+myInterval <- rowSums(roots_locfit2 > 2 & roots_locfit2 < 5 , na.rm = T)
+genesInterval <- row.names(norm_sq[myInterval > 0,])
+write.table(genesInterval, sep = '\t', 'P_2&5_2ndDerivative.txt')
+
 
