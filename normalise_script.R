@@ -1,7 +1,15 @@
 ##Normalising proteomics dataset
 
+cat('This function normalises the proteomics data in different ways
+			depending on the what argument
+			what = nada -> averaging between techinical replicates
+			what = median -> median between biological replicates
+			what = heatmap -> log2 fold change being tp0 the standard')
+
 normalise_ProtDataset <- function(as_safequant, what)
 {
+	library('matrixStats')
+	
 	numbers <- as_safequant[,1:78]
 	numbers <- numbers[grep(numbers[,1], pattern = 'SP'),]
 	
@@ -34,18 +42,19 @@ normalise_ProtDataset <- function(as_safequant, what)
 	{
 		median_sq <- matrix(ncol = 6+12, nrow = nrow(numbers), NA)
 		median_sq <- as.data.frame(median_sq)
-		colnames(median_sq) <- c(colnames(norm_sq[,1:6]),titles)
+		colnames(median_sq) <- c(colnames(norm_sq[,1:6]),unique(sapply(strsplit(titulos, '_'),"[[",2)))
+		row.names(median_sq) <- row.names(norm_sq)
 		
 		j = 7
 		
-		for(i in seq(7,42,3))
+		for(i in seq(7,40,3))
 		{
 			median_sq[,j] <- rowMedians(cbind(norm_sq[,i],norm_sq[,i+1],norm_sq[,i+2]), na.rm = T)
-			
 			j = j +1
 		}
 		
 		return(median_sq)
+		
 	}else if(what == 'heatmap')
 	{
 		renorm_sq <- norm_sq
@@ -65,4 +74,18 @@ normalise_ProtDataset <- function(as_safequant, what)
 	}else{
 		return(norm_sq)
 	}
+}
+
+reorder.proteomics <- function(dataset)
+{
+	reorder <- list()
+	
+	for(i in seq(1,3))
+	{	
+		reorder[[i]] <- dataset[,seq(i,33+i,3)]	
+	}
+	
+	back <- cbind(reorder[[1]], reorder[[2]], reorder[[3]])
+	
+	return(back)
 }

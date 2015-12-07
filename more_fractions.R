@@ -14,13 +14,14 @@ carb_id <- carb_metabolic$ensembl_id
 
 ribi_id <- setdiff(ribi_id, ribosomes_id)
 
-prot_data <- read.delim('C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/SQ_Results_PROTEIN.tsv', header = T, strings = F)
+prot_data <- read.delim('C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/rep_cpc.txt', header = T, strings = F)
 
 ##Preprocessing, and averaging between technical replicates.Reordering
 
-norm_prot <- normalise_ProtDataset(prot_data, what = 'nada')
-norm_prot <- norm_prot[,7:42]
+# norm_prot <- normalise_ProtDataset(prot_data, what = 'nada')
+# norm_prot <- norm_prot[,7:42]
 
+norm_prot <- 2^prot_data
 
 fractions <- as.data.frame(matrix(nrow = 5, ncol = ncol(norm_prot), NA))
 row.names(fractions) <- c('ribosome','ribi','aa', 'carb', 'rest')

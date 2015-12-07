@@ -1,9 +1,23 @@
+rm(list = ls())
+
+
 library("dplyr")
 library('matrixStats')
+library('DAAG')
+source('C:/Users/am4613/Documents/GitHub/Proteomics/normalise_script.R')
+source('C:/Users/am4613/Documents/GitHub/Misc/loov.r')
+library('gplots')
+
+
+
+sam_cpc <- read.delim('C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/sam_cpc.txt', header = T, strings = F)
 
 pep_amount <- 150 #femptomol per 1 ugr of protein extract 
 micrograms_per_injection <- 3
+
 cell_number <- read.delim("C:/Users/am4613/Documents/Summaries_as_timecourses/protein_per_cell_sho1.txt")
+cell_number$Cell.per.injection <- micrograms_per_injection/cell_number$Protein.per.cell
+rep_cell_number <- rep(cell_number$Cell.per.injection, each = 3)
 
 ######
 # Preparation PRM results
@@ -28,7 +42,13 @@ standard_quant$ID <- standard_key[match(standard_quant[,2], standard_key[,1]),2]
 standard_quant$AmountLight <- standard_quant$RatioToStandard * pep_amount
 standard_quant$ProteinNumber <- (standard_quant$AmountLight*6.022*10^23)/10^15
 
-st_quant_list <- split(standard_quant, standard_quant[,1])
+standard_quant <- standard_quant[standard_quant$ID != 'SPCC191.02c',]
+standard_quant <- standard_quant[standard_quant$ID != 'SPBC28F2.12',]
+standard_quant <- standard_quant[standard_quant$ID != 'SPBP22H7.08',]
+
+
+
+wo_list <- split(standard_quant, standard_quant[,1])
 ###########Preparation proteomics results (coming from SafeQuant)
 ###########
 
@@ -47,34 +67,7 @@ as_safequant <- read.delim('C:/Users/am4613/Documents/Summaries_as_timecourses/a
 
 ##Preprocessing, and averaging between technical replicates.Reordering
 
-numbers <- as_safequant[,1:78]
-numbers <- numbers[grep(numbers[,1], pattern = 'SP'),]
-
-titulos <- colnames(numbers)[7:78]
-titulos <- substr(titulos, 0, nchar(titulos) - 3)
-titulos <- unique(titulos)
-
-norm_sq <- matrix(ncol = 6+36, nrow = nrow(numbers), NA)
-norm_sq <- as.data.frame(norm_sq)
-colnames(norm_sq) <- c(colnames(numbers[,1:6]), titulos)
-
-norm_sq[,1:6] <- numbers[,1:6]
-
-
-##Average between technical replicates
-
-j = 7
-
-for(i in seq(7,78,2))
-{
-	norm_sq[,j] <- rowMeans(cbind(numbers[,i],numbers[,i+1]), na.rm = T)
-	
-	j = j +1
-}
-#Trim the IDs to get sistematic IDs
-
-a <- strsplit(norm_sq[,1], "\\|")
-row.names(norm_sq) <- sapply(a,"[[",1)
+norm_sq <- normalise_ProtDataset(as_safequant, what = 'nada')
 norm_sq <- norm_sq[,7:42]
 
 #Match digest with protein_data
@@ -91,9 +84,10 @@ row.names(norm_prot) <- proteomics_tryptic[,1]
 
 for(i in seq(1,36))
 {
-	toDo <- st_quant_list[[i]]
+	toDo <- wo_list[[i]]
 	x <- merge(toDo, norm_prot, by.x = "ID", by.y = "row.names", all.x = T)
-	st_quant_list[[i]]$ExpIntensity <- x[,i+6]
+	wo_list[[i]] <- cbind(x[,1:6], x[,i+6])
+	colnames(wo_list[[i]]) <- c(colnames(wo_list[[i]])[1:6],'ExpIntensity')
 	
 }
 
@@ -104,32 +98,115 @@ parameters <- data.frame(timepoint = rep(0:11, each = 3), intercept = NA, slope 
 corrs <- c(1:36)
 for(i in seq(1,36))
 {
-	fit <- lm(st_quant_list[[i]]$ProteinNumber ~ st_quant_list[[i]]$ExpIntensity)
-	corrs[i] <- cor(x = st_quant_list[[i]]$ProteinNumber,y = st_quant_list[[i]]$ExpIntensity, use = 'complete.obs')	
+	thing <- wo_list[[i]]$ProteinNumber/rep_cell_number[i]
+	fit <- lm(log(wo_list[[i]]$ExpIntensity) ~ log(thing) + 0)
+	corrs[i] <- summary(fit)$r.squared
 	parameters[i,2] <- fit$coefficients[[1]]
-	parameters[i,3] <- fit$coefficients[[2]]
+	#parameters[i,3] <- fit$coefficients[[2]]
 }
 
-cpc <- norm_prot
+###Plotting biological replicates together to see variance
 
-cell_number$Cell.per.injection <- micrograms_per_injection/cell_number$Protein.per.cell
-rep_cell_number <- rep(cell_number$Cell.per.injection, each = 3)
-
-##Calibrate normalised proteomics data
-
-for(i in seq(1,ncol(norm_prot)))
+par(mfrow = c(3,4))
+for(i in seq(1,34, 3))
 {
-	cpc[,i] <- norm_prot[,i]*parameters[i,3]
-	cpc[,i] <- cpc[,i]/rep_cell_number[i]
+	plot(x=log(wo_list[[i]]$ProteinNumber/rep_cell_number[i]), y=log(wo_list[[i]]$ExpIntensity), pch = 2)
+	points(x=log(wo_list[[i+1]]$ProteinNumber/rep_cell_number[i]), y=log(wo_list[[i+1]]$ExpIntensity),   pch = 2, col = 'red')
+	points(x=log(wo_list[[i+2]]$ProteinNumbe/rep_cell_number[i]), y=log(wo_list[[i+2]]$ExpIntensity),   pch = 2, col = 'blue')
+	
+	abline(0, parameters[i,2])
+	abline(0, parameters[i+1,2], col = 'red')
+	abline(0, parameters[i+2,2], col = 'blue')
 }
+
+##Calculate copies per cell for the different replicates
+
+rep_cpc <- norm_sq
+for(i in 1:36)
+{
+	rep_cpc[,i] <- log(norm_sq[,i])/parameters$intercept[i]
+}
+
+par(mfrow = c(1,3))
+boxplot(reorder.proteomics(rep_cpc)[,1:12], outline = F)
+boxplot(reorder.proteomics(rep_cpc)[,13:24], outline = F)
+boxplot(reorder.proteomics(rep_cpc)[,25:36], outline = F)
+
+write.table(rep_cpc, sep = '\t','C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/rep_cpc.txt')
+
+##Averaging biological repeats
 
 avg_st_quant <- list()
 
-j = 0
+j = 1
 for(i in seq(1,34,3))
 {
-	avg_st_quant[[j]] <- st_quant_list[[i]]
-	avg_st_quant[[j]]$ProteinNumber <- median(st_quant_list[[i]]$ProteinNumber, st_quant_list[[i+1]]$ProteinNumber, st_quant_list[[i+2]]$ProteinNumber)
-	avg_st_quant[[j]]$ExpIntensity <- median(st_quant_list[[i]]$ExpIntensity, st_quant_list[[i+1]]$ExpIntensity, st_quant_list[[i+2]]$ExpIntensity)
+	avg_st_quant[[j]] <- wo_list[[i]]
+	toDo <- cbind(wo_list[[i]]$ProteinNumber, wo_list[[i+1]]$ProteinNumber, wo_list[[i+2]]$ProteinNumber)
+	avg_st_quant[[j]]$ProteinNumber <- rowMedians(toDo, na.rm = T)
+	toDo <- cbind(wo_list[[i]]$ExpIntensity, wo_list[[i+1]]$ExpIntensity, wo_list[[i+2]]$ExpIntensity)
+	avg_st_quant[[j]]$ExpIntensity <- rowMedians(toDo, na.rm = T)
 	j = j+1
 }
+
+##Calculate median of the whole proteomics dataset
+median_norm <- normalise_ProtDataset(as_safequant, what = 'median')
+median_norm <- median_norm[,7:18]
+
+##Calculate linear regression for all the calibration curves, also plots them
+par(mfrow = c(3,4))
+bio_corrs <- c(1:12)
+bio_parameters <- data.frame(timepoint = 0:11, intercept = NA, slope = NA)
+r_squared <- data.frame(matrix(nrow = nrow(avg_st_quant[[1]]), ncol = 12, NA))
+for(j in c(1:12))
+{
+	rm(fit)
+	avg_st_quant[[j]]$ProteinPerCell <- avg_st_quant[[j]]$ProteinNumber/cell_number[j, 3]
+	fit <- lm(log2(avg_st_quant[[j]]$ExpIntensity) ~ log2(avg_st_quant[[j]]$ProteinPerCell) + 0)
+	bio_corrs[j] <- summary(fit)$r.squared
+	bio_parameters[j,2] <- fit$coefficients[[1]]
+	#bio_parameters[j,3] <- fit$coefficients[[2]]
+	r_squared[,j] <- loov(y = avg_st_quant[[j]]$ExpIntensity, x = avg_st_quant[[j]]$ProteinPerCell, log = T)
+	#confidence95 <- confint(fit, level = 0.95)
+	plot(x=log2(avg_st_quant[[j]]$ProteinPerCell), y=log2(avg_st_quant[[j]]$ExpIntensity),  col = rainbow(nrow(avg_st_quant[[j]])), pch = 2)
+	abline(fit)
+	#abline(confidence95[,1], col = 'red')
+	#abline(confidence95[,2], col = 'red')
+
+	legend('topleft', legend = paste('R squared: ',round(summary(fit)$r.squared,3)), bty = 'n')
+}
+
+##Plot to see which peptides affect most the r squared
+par(mfrow = c(3,4))
+for(i in 1:12)
+{
+	plot(r_squared[,i], type = 'h')
+}
+
+##Calculating copies per cell 
+cpc <- median_norm
+par(mfrow = c(1,1))
+for(i in 1:12)
+{
+	cpc[,i] <- log(median_norm[,i])/bio_parameters$intercept[i] 
+}
+
+write.table(cpc, sep = '\t','C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/cpc_proteins.txt')
+
+
+f <- colorRampPalette(c('blue','red'))
+col = f(12)
+
+plot(density(cpc[,1]), col = col[1])
+for(i in 2:12)
+{
+	lines(density(cpc[,i]), col = col [i])
+}
+
+plot(x = colMedians(as.matrix(cpc)), y = bio_parameters$slope, col = f(12))
+
+norm_cpc <- cpc - cpc[,1]
+real_cpc <- 2^cpc
+heatmap.2(as.matrix(cpc), Colv = F, col = colorRampPalette(c('lightblue','darkblue')), trace = 'none')
+
+
