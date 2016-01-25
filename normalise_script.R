@@ -76,7 +76,7 @@ normalise_ProtDataset <- function(as_safequant, what)
 	}
 }
 
-reorder.proteomics <- function(dataset)
+reorder_proteomics <- function(dataset)
 {
 	reorder <- list()
 	
@@ -88,4 +88,27 @@ reorder.proteomics <- function(dataset)
 	back <- cbind(reorder[[1]], reorder[[2]], reorder[[3]])
 	
 	return(back)
+}
+
+normalise_rna <- function(table)
+{
+	for(i in c(1,13,25))
+	{
+		table[,i:(i+11)] <- log2(table[,i:(i+11)]/table[,i])
+	}
+	
+	is.na(table) <- sapply(table, is.nan)
+	is.na(table) <- sapply(table, is.infinite)
+	table[is.na(table)] <- 0 
+	return(table)
+}
+
+df2list <- function(df)
+{
+	out <- list()
+	for(i in seq(1,ncol(df)))
+	{
+		out[[i]] <- df[,i]
+	}
+	return(out)
 }

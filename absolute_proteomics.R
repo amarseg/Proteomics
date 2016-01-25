@@ -15,9 +15,12 @@ sam_cpc <- read.delim('C:/Users/am4613/Documents/Summaries_as_timecourses/analys
 pep_amount <- 150 #femptomol per 1 ugr of protein extract 
 micrograms_per_injection <- 3
 
-cell_number <- read.delim("C:/Users/am4613/Documents/Summaries_as_timecourses/protein_per_cell_sho1.txt")
+cell_number <- read.delim("C:/Users/am4613/Documents/Summaries_as_timecourses/protein_per_cell_as.txt")
+colnames(cell_number) <- c('Time','Replicate','Protein.per.cell')
 cell_number$Cell.per.injection <- micrograms_per_injection/cell_number$Protein.per.cell
-rep_cell_number <- rep(cell_number$Cell.per.injection, each = 3)
+rep_cell_number <- cell_number
+
+avg_cell_number <- aggregate(Cell.per.injection ~ Time, data = cell_number, median)
 
 ######
 # Preparation PRM results
@@ -98,21 +101,21 @@ parameters <- data.frame(timepoint = rep(0:11, each = 3), intercept = NA, slope 
 corrs <- c(1:36)
 for(i in seq(1,36))
 {
-	thing <- wo_list[[i]]$ProteinNumber/rep_cell_number[i]
-	fit <- lm(log(wo_list[[i]]$ExpIntensity) ~ log(thing) + 0)
+	thing <- wo_list[[i]]$ProteinNumber/rep_cell_number$Cell.per.injection[i]
+	fit <- lm(log2(wo_list[[i]]$ExpIntensity) ~ log2(thing) + 0)
 	corrs[i] <- summary(fit)$r.squared
 	parameters[i,2] <- fit$coefficients[[1]]
 	#parameters[i,3] <- fit$coefficients[[2]]
 }
 
-###Plotting biological replicates together to see variance
+###Plotting biolog2ical replicates together to see variance
 
 par(mfrow = c(3,4))
 for(i in seq(1,34, 3))
 {
-	plot(x=log(wo_list[[i]]$ProteinNumber/rep_cell_number[i]), y=log(wo_list[[i]]$ExpIntensity), pch = 2)
-	points(x=log(wo_list[[i+1]]$ProteinNumber/rep_cell_number[i]), y=log(wo_list[[i+1]]$ExpIntensity),   pch = 2, col = 'red')
-	points(x=log(wo_list[[i+2]]$ProteinNumbe/rep_cell_number[i]), y=log(wo_list[[i+2]]$ExpIntensity),   pch = 2, col = 'blue')
+	plot(x=log2(wo_list[[i]]$ProteinNumber/rep_cell_number[i]), y=log2(wo_list[[i]]$ExpIntensity), pch = 2)
+	points(x=log2(wo_list[[i+1]]$ProteinNumber/rep_cell_number[i]), y=log2(wo_list[[i+1]]$ExpIntensity),   pch = 2, col = 'red')
+	points(x=log2(wo_list[[i+2]]$ProteinNumbe/rep_cell_number[i]), y=log2(wo_list[[i+2]]$ExpIntensity),   pch = 2, col = 'blue')
 	
 	abline(0, parameters[i,2])
 	abline(0, parameters[i+1,2], col = 'red')
@@ -124,17 +127,17 @@ for(i in seq(1,34, 3))
 rep_cpc <- norm_sq
 for(i in 1:36)
 {
-	rep_cpc[,i] <- log(norm_sq[,i])/parameters$intercept[i]
+	rep_cpc[,i] <- log2(norm_sq[,i])/parameters$intercept[i]
 }
 
 par(mfrow = c(1,3))
-boxplot(reorder.proteomics(rep_cpc)[,1:12], outline = F)
-boxplot(reorder.proteomics(rep_cpc)[,13:24], outline = F)
-boxplot(reorder.proteomics(rep_cpc)[,25:36], outline = F)
+boxplot(reorder_proteomics(rep_cpc)[,1:12], outline = F)
+boxplot(reorder_proteomics(rep_cpc)[,13:24], outline = F)
+boxplot(reorder_proteomics(rep_cpc)[,25:36], outline = F)
 
 write.table(rep_cpc, sep = '\t','C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/rep_cpc.txt')
 
-##Averaging biological repeats
+##Averaging biolog2ical repeats
 
 avg_st_quant <- list()
 
@@ -161,7 +164,7 @@ r_squared <- data.frame(matrix(nrow = nrow(avg_st_quant[[1]]), ncol = 12, NA))
 for(j in c(1:12))
 {
 	rm(fit)
-	avg_st_quant[[j]]$ProteinPerCell <- avg_st_quant[[j]]$ProteinNumber/cell_number[j, 3]
+	avg_st_quant[[j]]$ProteinPerCell <- avg_st_quant[[j]]$ProteinNumber/avg_cell_number$Cell.per.injection[j]
 	fit <- lm(log2(avg_st_quant[[j]]$ExpIntensity) ~ log2(avg_st_quant[[j]]$ProteinPerCell) + 0)
 	bio_corrs[j] <- summary(fit)$r.squared
 	bio_parameters[j,2] <- fit$coefficients[[1]]
@@ -188,7 +191,7 @@ cpc <- median_norm
 par(mfrow = c(1,1))
 for(i in 1:12)
 {
-	cpc[,i] <- log(median_norm[,i])/bio_parameters$intercept[i] 
+	cpc[,i] <- log2(median_norm[,i])/bio_parameters$intercept[i] 
 }
 
 write.table(cpc, sep = '\t','C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/cpc_proteins.txt')
