@@ -68,8 +68,7 @@ normalise_ProtDataset <- function(as_safequant, what)
 		
 		renorm_sq[,7:42] <- log2(renorm_sq[,7:42])
 		is.na(renorm_sq[,7:42]) <- sapply(renorm_sq[,7:42],is.nan)
-		is.na(renorm_sq[,7:42]) <- sapply(renorm_sq[,7:42],is.infinite)
-		renorm_sq[,is.na(renorm_sq)] <- 0 
+		is.na(renorm_sq[,7:42]) <- sapply(renorm_sq[,7:42],is.infinite) 
 		return(renorm_sq)
 	}else{
 		return(norm_sq)
@@ -111,4 +110,34 @@ df2list <- function(df)
 		out[[i]] <- df[,i]
 	}
 	return(out)
+}
+
+ggplotRegression <- function (fit) {
+	
+	require(ggplot2)
+	
+	ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+		geom_point() +
+		stat_smooth(method = "lm", col = "red") +
+		labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 5),
+											 "Intercept =",signif(fit$coef[[1]],5 ),
+											 " Slope =",signif(fit$coef[[2]], 5),
+											 " P =",signif(summary(fit)$coef[2,4], 5)))
+}
+
+median_rna <- function(df)
+{
+	avg_rpkm <- df[,1:12]
+	for(i in 1:12)
+	{
+		avg_rpkm[,i] <- apply(df[,seq(i,i+33,12)], 1, mean)
+	}
+	return(avg_rpkm)
+	
+}
+
+nc_remover <- function(ids)
+{
+	new_ids <- ids[grep(ids, pattern = 'SPNC', invert = T)]
+	return(new_ids)
 }
