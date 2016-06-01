@@ -28,7 +28,7 @@ avg_cell_number <- aggregate(Cell.per.injection ~ Time, data = cell_number, medi
 
 ##Load PRM results
 
-prm_results <- read.csv("C:/Users/am4613/Desktop/Peptide Ratio Results_cdc2as.csv", header = T, strings = F)
+prm_results <- read.csv("C:/Users/am4613/Documents/PRM_pombe_heavy/Copied_from_alex/Peptide Ratio Results_cdc2as.csv", header = T, strings = F)
 prm_results[prm_results == "#N/A"] <- NA
 prm_results[,4:6] <- apply(prm_results[,4:6], c(1,2), as.numeric)
 
@@ -57,7 +57,7 @@ wo_list <- split(standard_quant, standard_quant[,1])
 
 ##IN SILICO DIGESTION OF THE PROTEOME NEEDS TO BE REDONE, so far i am sticking to the one that Erik made for me in Basel
 
-digest <- read.delim("C:/Users/am4613/Documents/Amalia_Start_201113/Absolute/pompep_290811_plus_Pseudo.decoy.DIGEST.tsv",
+digest <- read.delim("P:/Amalia_Start_201113/Absolute/pompep_290811_plus_Pseudo.decoy.DIGEST.tsv",
 										 strings = F, header = T)
 
 #Remove all the REV hits (reverse sequences from the decoy database)

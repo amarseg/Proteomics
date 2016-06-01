@@ -93,7 +93,7 @@ sol_firstdf <- ldply(sol_first, rbind)
 sol_firstdf <- as.data.frame(sol_firstdf)
 row.names(sol_firstdf) <- row.names(norm_sq)
 
-hist(na.omit(sol_firstdf)[,1], breaks = 100, freq = F)
+hist(na.omit(rbind(sol_firstdf[,1], sol_firstdf[,2])), breaks = 100, freq = F)
 lines(density(sol_firstdf[,1], na.rm = T, to = max(sol_firstdf[,1], na.rm = T)), col = 'red')
 write.table(sol_firstdf, sep = '\t', 'C:/Users/am4613/Documents/Summaries_as_timecourses/analysis/first_sol_prot.txt')
 
